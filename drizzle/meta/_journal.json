@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790931948062,
+      "tag": "0000_hesitant_madame_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790958093259,
+      "tag": "0001_tricky_nuke",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790997982750,
+      "tag": "0002_dry_marten_broadcloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791000764133,
+      "tag": "0003_wealthy_zarek",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791022833678,
+      "tag": "0004_product_labels",
+      "breakpoints": true
+    }
+  ]
+}
