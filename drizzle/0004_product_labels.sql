@@ -1,0 +1,1 @@
+ALTER TABLE `sorting_results` ADD `product_context` text;
