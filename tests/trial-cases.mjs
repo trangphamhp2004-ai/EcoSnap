@@ -8,10 +8,33 @@ export async function run({assert,test,call,db,q,policy,temp,base,clear}){
  const reset=()=>{clear();db.exec("UPDATE users SET role='user' WHERE id IN ('a','b'); UPDATE users SET role='admin' WHERE id='admin'");};
  const reserve=(key,at=base,user='admin')=>q.reserve(user,key,at,'fixture-hash',true);
  if(!policy.ADMIN_TRIAL_ENABLED){
-  await test('Trial closed: admin admission blocked, live API remains disabled',async()=>{reset();assert.equal(policy.LIVE_OPENAI_ENABLED,false);await assert.rejects(()=>reserve('closed-trial-request-001'),e=>e.status===503);assert.equal((await q.quota('admin',base)).aiEnabled,false);assert.equal(db.prepare('SELECT COUNT(*) n FROM ai_requests').get().n,0);});
+  await test('Closed admin trial cannot be reopened; ordinary AI availability follows the release gate',async()=>{reset();assert.equal(policy.LIVE_OPENAI_ENABLED,true);await assert.rejects(()=>reserve('closed-trial-request-001'),e=>e.status===503);assert.equal((await q.quota('admin',base)).aiEnabled,true);assert.equal((await q.quota('admin',base)).trial,null);assert.equal(db.prepare('SELECT COUNT(*) n FROM ai_requests').get().n,0);});
   return;
  }
  await test('Trial allows admin only; ordinary users cannot opt in or create a reservation',async()=>{reset();await assert.rejects(()=>reserve('trial-user-rejected-001',base,'a'),e=>e.status===429);assert.equal((await q.quota('a',base)).aiEnabled,false);assert.equal((await q.quota('admin',base)).aiEnabled,true);assert.equal(db.prepare('SELECT COUNT(*) n FROM ai_requests').get().n,0);});
+ await test('Production route uses the admin trial, consent, real provider schema and deduplication through an offline transport',async()=>{
+  reset();const originalFetch=globalThis.fetch,originalNow=Date.now,originalKey=globalThis.__ecoTestEnv.OPENAI_API_KEY;let now=base,calls=0;
+  const jpeg=new Uint8Array([255,216,255,192,0,11,8,0,1,0,1,1,1,17,0,255,218,0,8,1,1,0,0,63,0,1,255,217]);
+  const form=()=>{const f=new FormData();f.set('image',new File([jpeg],'fixture.jpg',{type:'image/jpeg'}));f.set('requestKey','trial-production-route-001');f.set('consent','openai');f.set('mode','product');return f};
+  try{
+   Date.now=()=>now;delete globalThis.__ecoTestEnv.OPENAI_API_KEY;
+   globalThis.fetch=async(url,opts)=>{
+    calls++;assert.equal(url,'https://api.openai.com/v1/responses');const payload=JSON.parse(opts.body);assert.equal(payload.store,false);assert.equal(payload.max_output_tokens,policy.PRODUCT_OUTPUT_TOKENS);
+    const product={identified:true,multiple_products:false,brand:null,product_name:null,variant:null,label_photo:null,package_form:'bottle',warning:'none',components:[{role:'body',name:'Chai nhựa đã rỗng',rule_id:'bottle',confidence:.97,material_code:'PET 1',photo_index:1}]};
+    return Response.json({id:'resp_offline_admin_trial',model:policy.AI_MODEL,status:'completed',usage:{input_tokens:1000,output_tokens:200},output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(product)}]}]});
+   };
+   assert.equal((await call('recognize',{method:'POST',user:'admin',body:form()})).status,503);
+   globalThis.__ecoTestEnv.OPENAI_API_KEY='OFFLINE_TEST_KEY';
+   assert.equal((await call('recognize',{method:'POST',user:'a',body:form()})).status,503);
+   for(const field of ['consent','mode']){const f=form();f.delete(field);assert.equal((await call('recognize',{method:'POST',user:'admin',body:f})).status,400)}
+   const forged=form();forged.set('enable','true');assert.equal((await call('recognize',{method:'POST',user:'admin',body:forged})).status,400);
+   assert.equal(calls,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM ai_requests').get().n,0);
+   const r=await call('recognize',{method:'POST',user:'admin',body:form()});assert.equal(r.status,200);const result=await r.json();assert.equal(result.status,'success');assert.equal(result.schemaVersion,3);assert.equal(result.quota.dayUsed,1);
+   const repeat=await call('recognize',{method:'POST',user:'admin',body:form()});assert.equal(repeat.status,200);assert.equal((await repeat.json()).requestId,result.requestId);assert.equal(calls,1);
+   const row=db.prepare('SELECT trial_run_id,status,cost_vnd FROM ai_requests').get();assert.equal(row.trial_run_id,policy.TRIAL_ID);assert.equal(row.status,'success');assert.ok(row.cost_vnd>0&&row.cost_vnd<policy.MIN_RESERVE_VND);
+   now=policy.TRIAL_EXPIRES_AT;assert.equal((await call('recognize',{method:'POST',user:'admin',body:form()})).status,503);assert.equal(calls,1);assert.equal((await ai.recognitionResult('admin',result.requestId,now)).status,'success');
+  }finally{globalThis.fetch=originalFetch;Date.now=originalNow;if(originalKey===undefined)delete globalThis.__ecoTestEnv.OPENAI_API_KEY;else globalThis.__ecoTestEnv.OPENAI_API_KEY=originalKey;reset();}
+ });
  await test('Trial counts every outcome, caps at five, preserves success-only quota and free recovery',async()=>{
   reset();let first;
   for(const [i,outcome] of ['unknown','success','no_guidance','error','unknown'].entries()){const r=await reserve('trial-count-key-000'+i);if(!first)first=r;await q.settle(r.id,outcome,usage,base,{status:outcome,message:'fixture'});}

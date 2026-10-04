@@ -46,6 +46,8 @@ export async function run({assert,test:runTest,call,db,q,base,clear,manual,rules
    ['cake',{food:'yes',wrapper:'dirty-paper',base:'laminated'},['food','dirty-paper','laminated']],
    ['tissue',{used:'yes',food:'yes'},['food','tissue']],
    ['container',{use:'food',food:'yes',wrapper:'foam'},['food','foam']],
+   ['container',{use:'food',food:'yes',wrapper:'single-use'},['food','single-use']],
+   ['container',{use:'food',food:'yes',wrapper:'plastic-container'},['food','plastic-container']],
    ['container',{use:'food',food:'yes',wrapper:'metal'},['food','metal']],
    ['bottle',{needIntent:'yes',intent:'discard',use:'food',material:'bottle',remaining:'remains'},['bottle','drink-residue']]
   ]){const r=await submit(kind,answers);assert.equal(r.status,200);const v=await r.json();assert.deepEqual(v.plan.components.map(x=>x.id),expected)}

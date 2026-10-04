@@ -22,10 +22,10 @@ export async function run({assert,test,call,db,q,policy,temp,base,clear,blobs}){
  const run=(req,p=mock(),at=base)=>ai.runRecognition(req,'a',p,()=>at);
  function reset(){clear();db.exec('DELETE FROM history WHERE recognition_id IS NOT NULL');providerCalls=0;lastPayload=null}
  async function rejectsStatus(fn,status){await assert.rejects(fn,e=>e.status===status)}
- await test('Production release gate rejects even a configured key and client enable/mock flags before provider access',async()=>{
+ await test('Production route rejects client-supplied enable, mock and cost fields before provider access',async()=>{
   reset();globalThis.__ecoTestEnv.OPENAI_API_KEY='FAKE_KEY_NOT_REAL';globalThis.__ecoTestEnv.ECOSNAP_AI_ENABLED='true';
-  const form=new FormData();form.set('mode','mock');form.set('enabled','true');form.set('costVnd','0');assert.equal(policy.LIVE_OPENAI_ENABLED,false);
-  const r=await call('recognize',{method:'POST',user:'a',body:form});assert.equal(r.status,503);assert.match((await r.json()).error,/đang tắt/);assert.equal(db.prepare('SELECT COUNT(*) n FROM ai_requests').get().n,0);
+  const form=new FormData();form.set('mode','mock');form.set('enabled','true');form.set('costVnd','0');assert.equal(policy.LIVE_OPENAI_ENABLED,true);
+  const r=await call('recognize',{method:'POST',user:'a',body:form});assert.equal(r.status,400);assert.equal(db.prepare('SELECT COUNT(*) n FROM ai_requests').get().n,0);
  });
  await test('Real adapter with mocked response: success, schema, no-store, pinned model, explicit consent and backend cost',async()=>{
   reset();const r=await run(request('mock-success-key-0001',jpeg,{status:'success',costVnd:'0',model:'forged'}));assert.equal(r.status,'success');assert.equal(r.candidate.id,'ai-glass');assert.equal(r.quota.dayUsed,1);assert.equal(r.quota.monthUsed,1);assert.equal(providerCalls,1);
@@ -110,7 +110,7 @@ export async function run({assert,test,call,db,q,policy,temp,base,clear,blobs}){
  await test('Concurrent SQLite connections cannot exceed one pending/user or global budget',async()=>{
   reset();db.exec('PRAGMA journal_mode=WAL');db.prepare("UPDATE settings SET budget_vnd=? WHERE id='main'").run(policy.MIN_RESERVE_VND*2-1);
   const file=path.join(temp,'concurrency-worker.mjs');fs.writeFileSync(file,`import {workerData,parentPort} from 'node:worker_threads';import {DatabaseSync} from 'node:sqlite';const d=new DatabaseSync(workerData.db);d.exec('PRAGMA busy_timeout=10000');try{const r=d.prepare(workerData.sql).get(...workerData.args);parentPort.postMessage({ok:!!r})}catch(e){parentPort.postMessage({error:e.message})}finally{d.close()}`);
-  const runs=await Promise.all(Array.from({length:12},(_,i)=>new Promise((resolve,reject)=>{const u=i%2?'a':'b',id='worker-'+i,w=new Worker(file,{workerData:{db:path.join(temp,'data.sqlite'),sql:RESERVE_SQL,args:[id,u,'worker-request-key-'+i,'2026-10-03','2026-10',policy.MIN_RESERVE_VND,base,'hash'+i,u,base,'2026-10-03','2026-10','2026-10',policy.MIN_RESERVE_VND]}});w.on('message',resolve);w.on('error',reject)})));
+  const runs=await Promise.all(Array.from({length:12},(_,i)=>new Promise((resolve,reject)=>{const u=i%2?'a':'b',id='worker-'+i,w=new Worker(file,{workerData:{db:path.join(temp,'data.sqlite'),sql:RESERVE_SQL,args:[id,u,'worker-request-key-'+i,'2026-10-03','2026-10',policy.MIN_RESERVE_VND,base,'hash'+i,u,base,'2026-10-03','2026-10','2026-10',policy.MIN_RESERVE_VND]}});let outcome;w.on('message',value=>{outcome=value});w.on('error',reject);w.on('exit',code=>code===0?resolve(outcome):reject(Error('Concurrency fixture exited '+code)))})));
   assert.ok(runs.every(x=>!x.error),JSON.stringify(runs));assert.equal(runs.filter(x=>x.ok).length,1);assert.equal(db.prepare('SELECT COUNT(*) n FROM ai_requests').get().n,1);
  });
  await test('Image validation, missing consent and MIME spoof fail before provider; EXIF removed',async()=>{
