@@ -4,7 +4,7 @@ Website hỗ trợ phân loại rác sinh hoạt theo đồ vật và tình tr�
 
 **Website:** https://ecosnap.trangphamhp2004.chatgpt.site/
 
-Đây là bản mã nguồn để đọc, chấm và kiểm thử dự án, xuất từ phiên bản website 10 ngày 03/10/2026. Repo không chứa dữ liệu người dùng, ảnh người dùng, khóa API hay lịch sử triển khai nội bộ. Website được quản lý riêng trên Sites; thay đổi repo không tự triển khai lên website.
+Đây là bản mã nguồn để đọc, chấm và kiểm thử dự án, xuất từ phiên bản website 16, đồng bộ ngày 04/10/2026. Repo không chứa dữ liệu người dùng, ảnh người dùng, khóa API hay lịch sử triển khai nội bộ. Website được quản lý riêng trên Sites; thay đổi repo không tự triển khai lên website.
 
 ## Chức năng
 
@@ -14,7 +14,9 @@ Website hỗ trợ phân loại rác sinh hoạt theo đồ vật và tình tr�
 - Lưu và xem lại hướng dẫn; quản trị nội dung; gửi góp ý.
 - Backend quản lý quyền sở hữu kết quả, hạn mức, ngân sách, yêu cầu trùng và yêu cầu đồng thời.
 
-**AI có phí đang tắt trong mã backend.** Kiểm thử dưới đây dùng phản hồi OpenAI giả lập. Chưa xác minh độ chính xác đọc nhãn bằng ảnh thật cho bản cập nhật này. Kho tham chiếu thương hiệu có phạm vi giới hạn; thương hiệu chưa có hồ sơ phù hợp không được tự ghép sang sản phẩm khác.
+**AI được mở cho người dùng đã đăng nhập, có cấu hình dịch vụ và đồng ý gửi ảnh; hạn mức và ngân sách được kiểm soát ở backend.** Kiểm thử dưới đây dùng phản hồi OpenAI giả lập. Chưa xác minh độ chính xác đọc nhãn bằng ảnh thật cho bản cập nhật này. Kho tham chiếu thương hiệu có phạm vi giới hạn; thương hiệu chưa có hồ sơ phù hợp không được tự ghép sang sản phẩm khác.
+
+Mục kiến thức bổ sung thư viện vật liệu, 60 địa điểm, 16 dự án và 11 bài viết có nguồn tham khảo.
 
 ## Công nghệ và cấu trúc
 
@@ -64,7 +66,7 @@ Mở địa chỉ `http://127.0.0.1:.../` được in ra sau kiểm thử. Đây
 
 ## Kết quả kiểm thử
 
-Phiên bản 10 đã đạt **88/88 kiểm thử backend**: 68 trường hợp cũ và 20 nhóm mới. Bao gồm tra cứu thủ công, thành công/chưa xác định/thiếu hướng dẫn, API lỗi, thời gian chờ, hạn mức ngày/tháng theo giờ Việt Nam, ngân sách và dự phòng, gửi trùng/nhiều tab, nhiều ảnh, nhãn mờ, mã nắp/thân, sửa nhãn và xem dữ liệu cũ.
+Bản đồng bộ này đã đạt **106/106 kiểm thử backend**, bao gồm kiểm tra AI công khai và kho kiến thức. Bao gồm tra cứu thủ công, thành công/chưa xác định/thiếu hướng dẫn, API lỗi, thời gian chờ, hạn mức ngày/tháng theo giờ Việt Nam, ngân sách và dự phòng, gửi trùng/nhiều tab, nhiều ảnh, nhãn mờ, mã nắp/thân, sửa nhãn và xem dữ liệu cũ.
 
 Auth, OpenAI và lưu trữ trong bộ kiểm thử là fixture riêng. Kết quả này không chứng minh chất lượng AI với ảnh thật hoặc xác nhận dịch vụ đăng nhập/cloud storage bên ngoài. Toàn bộ kiểm thử backend chặn mạng và không cần `OPENAI_API_KEY`.
 

@@ -1,47 +1,56 @@
-# EcoSnap — thiết lập backend cho bản mã nguồn công khai
+# EcoSnap — trạng thái backend và thiết lập xác thực
 
-## Trạng thái
+Dự án hiện tại: https://ecosnap.trangphamhp2004.chatgpt.site
+Giữ quyền xem chỉ chủ sở hữu. Luồng AI đã được triển khai nhưng gọi OpenAI thật bị khóa ở backend; chưa thử ảnh thật hoặc phát sinh yêu cầu API có phí.
 
-Bản xuất từ website phiên bản 10 ngày 03/10/2026. Website tham khảo đã công khai tại https://ecosnap.trangphamhp2004.chatgpt.site/; repo không có quyền triển khai vào website đó. Hai cổng `LIVE_OPENAI_ENABLED` và `ADMIN_TRIAL_ENABLED` trong `lib/server/ai-policy.ts` đều là `false`.
+## Dữ liệu và phân quyền
 
-Nếu chỉ cần đọc/chấm hoặc kiểm thử, dùng `node tests/backend.mjs` hoặc giao diện fixture trong README. Không cần khóa OpenAI hay tài khoản dịch vụ cho bộ kiểm thử.
+Sites cung cấp D1 (DB) và R2 (BUCKET). Migration tạo bảng dữ liệu và 8 nhóm đã thống nhất; không nhập vật phẩm, lịch sử, chi phí, góp ý hoặc bài viết giả. Nội dung mới cần kiểm duyệt và nguồn trước khi xuất bản. Ảnh nhận diện được xem trước trên thiết bị; chỉ khi bật AI sau phê duyệt và người dùng đồng ý rồi bấm nhận diện mới gửi qua backend tới OpenAI. EcoSnap không lưu ảnh vào D1/R2 hoặc nhật ký. Tệp góp ý JPG/PNG/WebP/PDF tối đa 5 MB được lưu riêng, chỉ admin tải qua API đã kiểm tra quyền.
 
-## Dịch vụ của bản triển khai độc lập
+Xác thực dùng Supabase Auth SDK phía server. Google/email chưa hoạt động khi chưa có cấu hình. Không dùng tài khoản thử thay xác thực. Supabase giữ mật khẩu và xác thực email; D1 giữ hồ sơ/role. Các API xác minh người dùng với Supabase mỗi yêu cầu, kiểm tra quyền ở server, dùng cookie HttpOnly/Secure/SameSite. Không dùng service-role key.
 
-- Cloudflare Worker chạy backend Vinext; D1 binding `DB` chứa dữ liệu; R2 binding `BUCKET` lưu tệp góp ý có kiểm soát quyền.
-- Supabase Auth quản lý đăng nhập Google/email. Backend xác minh phiên và email; vai trò admin không do trình duyệt tự chọn.
-- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `ECOSNAP_ADMIN_EMAIL` là biến cấu hình. `.env.example` chứa giá trị trống. `OPENAI_API_KEY` chỉ đặt dưới dạng secret phía server khi đã quyết định thử có phí.
-- `.openai/hosting.json` giữ tên binding để chạy/build cục bộ, không gắn ID dự án của chủ website.
+## Chủ website cần cấu hình
 
-Người tự host cần rà soát URL trong `lib/server/auth.ts`, cấu hình callback Supabase theo domain mới và kiểm tra cookie Secure trên HTTPS. Đăng nhập giả lập của starter Sites không thay thế xác thực Supabase của EcoSnap.
+1. Dùng dự án Supabase do bạn quản lý; kiểm tra điều kiện gói đang chọn. Không nâng cấp hay bật dịch vụ trả phí tự động.
+2. Trong Authentication → URL Configuration, đặt Site URL thành `https://ecosnap.trangphamhp2004.chatgpt.site`; cho phép redirect `https://ecosnap.trangphamhp2004.chatgpt.site/api/ecosnap/auth/callback**` (đường dẫn này kèm tham số next). Không cho phép wildcard toàn bộ domain khác.
+3. Bật đăng nhập Email và xác minh email. Thiết lập gửi email xác minh/khôi phục; dịch vụ email mặc định có hạn chế nên phải kiểm tra người nhận được phép và cấu hình SMTP của bạn nếu cần. Nhập thông tin SMTP trực tiếp ở Supabase, không gửi mật khẩu vào hội thoại.
+4. Bật Google provider trong Supabase. Tạo Google OAuth web client trong tài khoản Google Cloud của bạn; đặt callback đúng URL Supabase hiển thị. Nhập Client ID/secret trực tiếp vào Supabase. Nếu ứng dụng Google ở chế độ thử nghiệm, thêm email cần thử vào danh sách test users.
+5. Trong phần biến môi trường của Sites, đặt `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY` từ dự án đó. Đây là key publishable, không dùng secret/service-role key. Nhập ở trang cài đặt, không dán bí mật vào chat.
+6. Sau khi chủ sở hữu xác nhận email admin, đặt `ECOSNAP_ADMIN_EMAIL` tương ứng. Chỉ tài khoản có email đã xác minh trùng cấu hình được cấp quyền. Người đăng ký không được chọn vai trò. Đổi biến này không tự thu hồi admin đã cấp; cần thao tác bảo trì có kiểm soát để thu hồi.
+7. Áp dụng cấu hình và cập nhật cùng dự án Sites. Thử Google, đăng ký/xác minh email, đăng xuất, quên mật khẩu trên trình duyệt. Liên kết email PKCE phải mở trên cùng trình duyệt đã bắt đầu yêu cầu. Site riêng tư vẫn yêu cầu quyền xem Sites trước lớp đăng nhập EcoSnap.
 
-## Migration trên máy
+## Nhận diện ảnh và khóa phát hành
 
-Sau `pnpm build`, cấu hình Worker cục bộ được tạo tại `dist/server/wrangler.json`. Áp dụng tệp SQL trong `drizzle/` từ `0000` đến `0004`, mỗi migration đúng một lần, vào database cục bộ:
+`lib/server/ai-policy.ts` đặt `LIVE_OPENAI_ENABLED = false`. Đây là khóa trong mã backend, không có biến môi trường, tham số trình duyệt, chế độ mock hay nút quản trị để vượt qua. Giữ nguyên secret `OPENAI_API_KEY` trên Sites. Chỉ sửa khóa này trong một bản cập nhật được chủ sở hữu phê duyệt sau khi rà soát điều kiện thử nghiệm.
 
-```sh
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_hesitant_madame_masque.sql
-```
+Frontend giữ các trang và kiểu giao diện hiện có. Chụp/tải JPG, PNG, WEBP tối đa 10 MB, xem trước, thu nhỏ cạnh dài tối đa 1280 px và mã hóa lại JPEG (bỏ EXIF); xác nhận đồng ý gửi OpenAI. Backend kiểm tra kiểu/dung lượng/kích thước ảnh, bỏ các khối metadata JPEG, gửi inline tới Responses API với `store:false`, không dùng Files API hay lưu blob. OpenAI có chính sách lưu giữ riêng; `store:false` không đồng nghĩa Zero Data Retention. UI liên kết chính sách này.
 
-Thay tên tệp bằng từng migration tiếp theo. Lệnh này chỉ dành cho database cục bộ. Migration không có tài khoản, lịch sử hay chi phí người dùng thật. Chúng giữ cấu trúc cũ phục vụ tương thích; luồng phân loại mới chủ yếu dùng quy tắc trong `lib/sorting-rules.ts` và `lib/manual-lookup.ts`.
+Adapter dùng `gpt-4.1-mini-2025-04-14`, schema JSON chặt, giới hạn 512 output token, không có công cụ và không tự retry. AI chỉ xuất tên/nhóm, độ chắc chắn và định danh ứng viên. Backend chỉ chấp nhận ứng viên chính xác trong catalog đã kiểm duyệt, đã xuất bản, có nguồn và có các bước hướng dẫn; kiểm tra tên/nhóm trùng và độ chắc chắn >= 0.85. Không ép chọn vật phẩm gần giống. Không có hướng dẫn phù hợp thì hiển thị thiếu hướng dẫn, không trừ lượt. Catalog tối đa 100 mục/20 KB mô tả; mục ngoài phạm vi này cần tra cứu thủ công. Độ chính xác/ngưỡng cần đánh giá bằng ảnh thật trước phát hành AI.
 
-## Nhận diện và hướng dẫn
+Người dùng xác nhận hoặc tự chọn lại trong kho nội dung đã kiểm duyệt. Backend kiểm tra quyền sở hữu yêu cầu, phiên bản nội dung hiện tại, lưu lịch sử một lần. Hướng dẫn bị ẩn/đổi sẽ yêu cầu kiểm tra lại. Không lưu hướng dẫn do AI tạo. Xem lại kết quả hoặc tra cứu thủ công không gọi AI và không trừ lượt.
 
-Frontend nhận tối đa ba ảnh cho một tình huống, thu nhỏ và bỏ EXIF. Chỉ gửi sau khi người dùng đồng ý và chủ website mở cổng AI. Backend kiểm tra ảnh, bỏ metadata JPEG, gửi inline với `store:false`, không lưu ảnh nhận diện vào D1/R2 hay nhật ký. Chính sách nhà cung cấp vẫn áp dụng; `store:false` không phải cam kết Zero Data Retention.
+## Hạn mức, đồng thời và thời gian
 
-Model được ghim trong `lib/server/ai-policy.ts`; output tối đa 512 token cho luồng cũ, 1.500 token cho đọc nhãn. Phản hồi phải qua schema chặt. AI nhận diện tên/nhãn/các phần; hướng dẫn và nguồn tham khảo do backend chọn từ nội dung đã kiểm duyệt. AI không tự tạo hướng dẫn hoặc địa chỉ thu gom.
+5 lượt có kết quả/ngày, 20/tháng, giới hạn cứng tại backend, múi giờ Asia/Ho_Chi_Minh. Lượt bổ sung trước đây được giữ trong dữ liệu nhưng không vượt qua giới hạn này; chức năng cấp thêm được tạm tắt trong trang hiện có. Ngày/tháng của yêu cầu được chốt khi tiếp nhận. Kết quả thành công được tính khi backend trả ứng viên hợp lệ, không phải khi người dùng bấm xác nhận.
 
-Người dùng sửa và xác nhận nhãn trước khi xem kết quả. Mã nắp không tự gán cho thân; khác dung tích/phiên bản không tự dùng hồ sơ gần giống. Tham chiếu thương hiệu có thời hạn và phạm vi cụ thể trong `lib/server/product-guidance.ts`.
+SQL giữ chỗ nguyên tử tính cả pending; mỗi người dùng chỉ có một yêu cầu pending, khóa request duy nhất gắn với hash ảnh có phân tách theo người dùng. Cùng khóa trả lại kết quả cũ, không gọi provider lần nữa; cùng khóa khác ảnh bị từ chối. Khác khóa khi tài khoản đang xử lý trả 409. Trình duyệt phục hồi phản hồi bị mất bằng GET theo khóa, không gửi lại ảnh. Giao diện làm mới hạn mức định kỳ và khi lấy lại tiêu điểm.
 
-## Hạn mức và ngân sách
+Unknown, lỗi kỹ thuật, thiếu hướng dẫn không trừ lượt. Ba unknown liên tiếp tạo cooldown 10 phút; nhận diện xác định được (kể cả thiếu hướng dẫn) xóa chuỗi unknown; lỗi kỹ thuật không tăng hoặc xóa chuỗi. Timeout provider 25 giây. Pending quá 120 giây được kết thúc lỗi và giải phóng lượt; toàn bộ dự phòng vẫn được tính là chi phí ước tính. Kết quả đến muộn không ghi đè trạng thái đã kết thúc, tránh vượt hạn mức.
 
-- Tối đa 5 lượt có kết quả/ngày, 20/tháng, theo `Asia/Ho_Chi_Minh`.
-- Chưa xác định, lỗi kỹ thuật hoặc thiếu hướng dẫn không trừ lượt thành công; ba lần chưa xác định liên tiếp nghỉ 10 phút.
-- Backend giữ chỗ nguyên tử, xử lý idempotency và yêu cầu đồng thời. Tra cứu thủ công/xem lại không gọi AI.
-- Ngân sách ứng dụng tối đa 5.000.000 VND/tháng; cảnh báo 3.500.000 và 4.500.000 VND, tính cả yêu cầu đang xử lý.
-- Dự phòng bảo thủ hiện tại là 12.643 VND/yêu cầu, bao phủ context và output đã cấu hình. Đây là dự toán, không phải phí cố định mỗi ảnh. Chi phí từ usage do backend ghi; khi thiếu usage giữ dự phòng thành ước tính cần đối soát.
-- Giá/tỷ giá trong mã là cấu hình tại thời điểm viết. Trước khi tự bật AI phải đối chiếu giá và quyền model hiện hành. Giới hạn chỉ bao phủ adapter EcoSnap, không bao phủ ứng dụng khác dùng cùng khóa.
+## Ngân sách và chi phí
 
-## Phạm vi kiểm chứng
+Trần cứng 5.000.000 VND/tháng. Cảnh báo do backend xác định ở 3.500.000 và 4.500.000 VND, bao gồm chi phí đã ghi nhận và đang giữ chỗ; hiển thị trên trang quản trị. Không tự gửi email/thông báo ra ngoài.
 
-88 kiểm thử dùng SQLite thật với dữ liệu thử, auth/R2 giả lập và adapter OpenAI có transport giả lập; mọi fetch ngoài fixture bị chặn. TypeScript và build phiên bản gốc đã đạt. Chưa dùng ảnh thật để đánh giá đọc nhãn phiên bản này. Không suy ra từ kiểm thử giả lập rằng dịch vụ đăng nhập, camera điện thoại, độ chính xác hay chi phí thực tế đã được kiểm chứng.
+Giá chuẩn đã đối chiếu tài liệu OpenAI ngày 02/10/2026: input $0.40/triệu token, output $1.60/triệu token. Tỷ giá nội bộ bảo thủ 30.000 VND/USD là chính sách dự toán, không phải tỷ giá giao dịch thực tế. Dự phòng tối thiểu 12.596 VND/yêu cầu bao phủ toàn bộ context 1.047.576 token của model cộng 512 output token, dù yêu cầu thông thường nhỏ hơn nhiều. Backend không cho giảm dự phòng dưới cận này; không dùng chi phí từ trình duyệt. Usage hợp lệ của provider quyết định chi phí quy đổi theo mức uncached và làm tròn lên; phần dự phòng không dùng được giải phóng khi settle. Không xác nhận được usage (timeout, network, HTTP error...) thì giữ toàn bộ dự phòng thành chi phí ước tính, kể cả khi thực tế có thể không bị tính phí. Trang quản trị tách khoản này để đối soát sau.
+
+Phạm vi trần là các lệnh nhận diện do EcoSnap gửi qua adapter này. Không bao phủ sử dụng cùng khóa bởi ứng dụng khác, thuế/phí thanh toán hoặc thay đổi bảng giá. Trước khi bật thật phải xác minh model/quyền truy cập, giá, tỷ giá dự toán và chi phí trên OpenAI; không tự bật hoặc gọi API để kiểm tra.
+
+Nguồn: https://developers.openai.com/api/docs/models/gpt-4.1-mini ; https://developers.openai.com/api/docs/guides/structured-outputs ; https://developers.openai.com/api/docs/guides/your-data
+
+## Kiểm thử và giới hạn
+
+`node tests/backend.mjs` chạy migration thật trên SQLite và mã API/adapter thật với transport OpenAI giả lập; mọi fetch toàn cục bị chặn. Auth/R2 dùng fixture. Có kiểm tra nhiều kết nối SQLite ở worker threads, không chỉ Promise.all trên một kết nối. Cơ sở dữ liệu chỉ nằm trong `.backend-tests` và được xóa khi hoàn tất; không nhập dữ liệu thử lên Sites.
+
+`node node_modules/typescript/bin/tsc --noEmit --incremental false` kiểm tra kiểu. `tests/ui.mjs` là bộ Playwright dùng route fixture và chặn request ngoài localhost; không nằm trong luồng runtime. Trong môi trường hiện tại Chrome headless không khởi động được, nên kiểm tra tương tác thực hiện qua trình duyệt tích hợp với proxy fixture riêng trên loopback. Dữ liệu/auth/OpenAI ở các kiểm tra này đều là giả lập.
+
+Chưa xác minh bằng ảnh thật: độ chính xác tên/nhóm/chất liệu, từ chối ảnh mờ/nhiều vật, độ trễ và usage thực; quyền model của secret; điều kiện lưu giữ OpenAI; hành vi camera/quyền chụp trên điện thoại thật; đăng nhập và D1/R2 thật trong luồng nhận diện. Không khẳng định AI đang hoạt động thực tế. Không chạy API có phí khi bàn giao.
