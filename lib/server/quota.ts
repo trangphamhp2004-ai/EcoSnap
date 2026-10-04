@@ -20,6 +20,7 @@ export async function budgetState(ms=Date.now()){
  return {...b,limit:s.budget_vnd,reservePerRequest:s.reserve_vnd,warning:b.cost+b.reserved>=WARNING_VND[1]?WARNING_VND[1]:b.cost+b.reserved>=WARNING_VND[0]?WARNING_VND[0]:0,available:b.cost+b.reserved+s.reserve_vnd<=s.budget_vnd};
 }
 export async function trialState(userId:string,ms=Date.now()){
+ if(LIVE_OPENAI_ENABLED)return null;
  const u=await statement('SELECT role FROM users WHERE id=?',userId).first<any>();
  if(u?.role!=='admin')return null;
  const s=await getSettings();

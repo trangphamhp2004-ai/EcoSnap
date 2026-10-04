@@ -1,3 +1,4 @@
+import {readingForRules} from './knowledge';
 import {validProductContext,cleanProductContext,productSelections} from '../product-label';
 import {productGuidance} from './product-guidance';
 import {statement} from './database';
@@ -45,5 +46,5 @@ export async function saveSorting(userId:string,d:any){
  if(!saved)throw new HttpError(409,'Các phần đã thay đổi ở một tab khác. Hãy tải lại.');
  return readSorting(userId,saved.id);
 }
-export async function readSorting(userId:string,id:string){const row=await statement('SELECT * FROM sorting_results WHERE id=? AND user_id=?',id,userId).first<any>();if(!row)throw new HttpError(404,'Không tìm thấy kết quả của bạn.');const ids=JSON.parse(row.selections),product=row.product_context?JSON.parse(row.product_context):null;return {...(product&&validProductContext(product)?{product,productGuidance:productGuidance(product,ids)}:{}),id:row.id,plan:sortingPlan(ids),saved:!!row.saved,method:row.recognition_id?'Ảnh · đã xác nhận':'Tra cứu thủ công',createdAt:row.created_at,updated:row.rule_version!==SORTING_VERSION};}
+export async function readSorting(userId:string,id:string){const row=await statement('SELECT * FROM sorting_results WHERE id=? AND user_id=?',id,userId).first<any>();if(!row)throw new HttpError(404,'Không tìm thấy kết quả của bạn.');const ids=JSON.parse(row.selections),product=row.product_context?JSON.parse(row.product_context):null;return {...(product&&validProductContext(product)?{product,productGuidance:productGuidance(product,ids)}:{}),id:row.id,relatedArticles:await readingForRules(ids),plan:sortingPlan(ids),saved:!!row.saved,method:row.recognition_id?'Ảnh · đã xác nhận':'Tra cứu thủ công',createdAt:row.created_at,updated:row.rule_version!==SORTING_VERSION};}
 export async function sortingHistory(userId:string){const rows=await statement('SELECT id,selections,saved,recognition_id,created_at FROM sorting_results WHERE user_id=? ORDER BY created_at DESC LIMIT 200',userId).all<any>();return rows.results.map(r=>({id:r.id,title:sortingPlan(JSON.parse(r.selections)).components.map(x=>x.name).join(' + '),saved:!!r.saved,createdAt:r.created_at,method:r.recognition_id?'Ảnh · đã xác nhận':'Tra cứu thủ công'}));}

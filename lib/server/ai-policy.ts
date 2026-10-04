@@ -1,11 +1,10 @@
-// Deliberate release gate. Only change after the owner approves a real-image trial.
-// No request, browser flag, admin setting, or environment variable can enable it.
-export const LIVE_OPENAI_ENABLED: boolean = false;
-// Owner approved 2026-10-03: one bounded admin-only trial. No runtime flag
-// or user-supplied value can reopen it or reset the persistent attempt count.
+// Owner approved AI access for all authenticated users on 2026-10-03.
+// Admission, quota and cost remain backend-controlled; clients cannot change this gate.
+export const LIVE_OPENAI_ENABLED: boolean = true;
+// Close the earlier admin-only trial while preserving its historical cost records.
 export const ADMIN_TRIAL_ENABLED: boolean = false;
-export const TRIAL_ID = 'owner-trial-2026-10-03-01';
-export const TRIAL_EXPIRES_AT = Date.parse('2026-10-03T05:30:00Z');
+export const TRIAL_ID = 'owner-trial-2026-10-03-02';
+export const TRIAL_EXPIRES_AT = Date.parse('2026-10-04T12:49:17Z');
 export const TRIAL_CALL_LIMIT = 5;
 export const TRIAL_BUDGET_VND = 20_000;
 export const AI_MODEL = 'gpt-4.1-mini-2025-04-14';

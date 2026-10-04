@@ -96,7 +96,7 @@ export async function runRecognition(req:Request,userId:string,provider:ImagePro
    return recognitionResult(userId,r.id,clock());
   }
   const response=await provider({image,images,catalog,reservation:r.reserve_vnd});usage=response.usage;
-  if(response.technicalError&&response.failureCode)result={...result,failureCode:response.failureCode,...(response.httpStatus?{httpStatus:response.httpStatus}:{})};
+  if(response.technicalError&&response.failureCode)result={...result, message:response.failureCode==='transport_error'?'Chưa kết nối được dịch vụ nhận diện. Đây là lỗi kết nối, không phải do ảnh thiếu nhãn. Không trừ lượt; bạn có thể thử lại hoặc tra cứu thủ công.':response.failureCode==='timeout'?'Dịch vụ nhận diện phản hồi quá lâu. Không trừ lượt; bạn có thể thử lại hoặc tra cứu thủ công.':result.message,failureCode:response.failureCode,...(response.httpStatus?{httpStatus:response.httpStatus}:{})};
   if(!response.technicalError&&response.product&&flow==='product'){result=productResult(response.product);outcome=result.status;}
   else if(!response.technicalError&&response.scene&&flow==='sorting'){result=sceneResult(response.scene);outcome=result.status;}
   else if(!response.technicalError&&response.identification&&flow==='legacy'){
