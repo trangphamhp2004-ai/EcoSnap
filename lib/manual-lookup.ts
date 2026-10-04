@@ -20,7 +20,7 @@ const options={
  damage:[['intact','Nguyên vẹn'],['broken','Nứt hoặc vỡ'],['unknown','Chưa kiểm tra']],
  product:[['skin','Dưỡng da, làm sạch da thông thường'],['hair','Dầu gội, dầu xả, chăm sóc tóc thông thường'],['other','Loại khác hoặc chưa rõ']],
  accessory:[['no','Không có phần cần phân loại thêm'],['yes','Có nắp, vòi bơm hoặc phụ kiện']],
- wrapper:[['paper','Giấy / carton sạch, khô'],['dirty-paper','Giấy dính kem, dầu hoặc thức ăn'],['laminated','Giấy có lớp phủ nhựa / bạc'],['foam','Xốp'],['metal','Kim loại'],['glass','Thủy tinh'],['unknown','Nhựa khác hoặc chưa rõ']],
+ wrapper:[['paper','Giấy / carton sạch, khô'],['dirty-paper','Giấy dính kem, dầu hoặc thức ăn'],['laminated','Giấy có lớp phủ nhựa / bạc'],['foam','Xốp'],['single-use','Hộp / khay nhựa dùng một lần'],['plastic-container','Hộp / khay nhựa, chưa rõ loại'],['metal','Kim loại'],['glass','Thủy tinh'],['unknown','Chưa rõ chất liệu']],
  food:[['yes','Có, tách được'],['no','Không còn / không tách được']],
  base:[['none','Không có đế riêng'],['same','Giống phần vỏ hộp'],['paper','Giấy / carton sạch'],['dirty-paper','Giấy dính bánh, kem hoặc dầu'],['laminated','Có lớp phủ nhựa / bạc'],['unknown','Chưa rõ']],
  used:[['yes','Đúng, đã sử dụng trong ăn uống'],['no','Chưa dùng hoặc dính chất khác']],
@@ -132,7 +132,7 @@ export function resolveManual(kind:ManualKind,a:Answers):{ids:string[];keep?:boo
   if(kind==='container'&&a.use==='personal')return resolveManual('bottle',a);
   if(kind==='container'&&a.use!=='food')return {ids:['unknown-container']};
   if(a.food==='yes')ids.push('food');
-  const wrapper=a.wrapper==='glass'?glass():['paper','dirty-paper','laminated','foam','metal'].includes(a.wrapper)?a.wrapper:'unknown-container';ids.push(wrapper);
+  const wrapper=a.wrapper==='glass'?glass():['paper','dirty-paper','laminated','foam','metal','single-use','plastic-container'].includes(a.wrapper)?a.wrapper:'unknown-container';ids.push(wrapper);
   if(kind==='cake'&&a.base&&a.base!=='none')ids.push(a.base==='same'?wrapper:['paper','dirty-paper','laminated'].includes(a.base)?a.base:'unknown-container');
  }else if(kind==='tissue'){ids.push(a.used==='yes'?'tissue':'unknown-item');if(a.used==='yes'&&a.food==='yes')ids.push('food');
  }else if(kind==='paper'){ids.push(['paper','dirty-paper','laminated','tissue'].includes(a.paperType)?a.paperType:'unknown-item');if(a.food==='yes'&&a.paperType!=='paper')ids.push('food');
